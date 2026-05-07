@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>EP Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#080c10;--surface:#0d1219;--card:#111820;--border:#1e2d3d;--border2:#243447;--text:#cdd9e5;--muted:#526070;--accent:#39d0ff;--green:#00e5a0;--red:#ff4f7b;--orange:#ffa630;--purple:#d2a8ff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;min-height:100vh}
+header{background:linear-gradient(90deg,#080c10,#0d1a28 50%,#080c10);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+.logo-title{font-size:20px;font-weight:700;color:var(--accent);letter-spacing:.12em;text-transform:uppercase}
+.logo-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em}
+.nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.nav-btn{padding:6px 16px;border-radius:5px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;transition:all .15s}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nav-btn.active{background:#0d2535;border-color:var(--accent);color:var(--accent)}
+.lock-badge{font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 10px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s}
+.lock-badge.unlocked{border-color:var(--green);color:var(--green);background:#001a0e}
+
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px}
+.stat-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em}
+.stat-value{font-size:28px;font-weight:700;line-height:1.1;margin:2px 0}
+.stat-sub{font-size:10px;color:var(--muted)}
+
+.view{display:none;padding:0 28px 80px}
+.view.active{display:block}
+
+/* EP CARDS */
+.ep-grid{display:grid;gap:12px;margin-top:4px}
+.ep-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;transition:border-color .15s}
+.ep-card:hover{border-color:var(--border2)}
+.ep-card.watching{border-left:3px solid var(--accent)}
+.ep-card.entered {border-left:3px solid var(--green)}
+.ep-card.exited  {border-left:3px solid var(--muted);opacity:.7}
+
+.ep-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ep-sym{font-size:20px;font-weight:700;color:#e0eaf5;letter-spacing:.05em}
+.ep-links{display:flex;gap:6px}
+.ep-link{font-size:14px;text-decoration:none;color:var(--muted);transition:color .15s}
+.ep-link:hover{color:var(--accent)}
+.ep-link.sc:hover{color:var(--orange)}
+.ep-link.nse:hover{color:var(--green)}
+.catalyst-badge{font-family:'Share Tech Mono',monospace;font-size:9px;padding:2px 8px;border-radius:3px;font-weight:700}
+.status-sel{font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;outline:none}
+
+.ep-prices{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end}
+.price-block{display:flex;flex-direction:column;gap:2px}
+.price-label{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:.1em}
+.price-val{font-family:'Share Tech Mono',monospace;font-size:18px;font-weight:700}
+.pct-block{display:flex;flex-direction:column;gap:2px}
+.pct-val{font-family:'Share Tech Mono',monospace;font-size:22px;font-weight:700}
+.pct-from{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted)}
+.day-pct{font-family:'Share Tech Mono',monospace;font-size:12px;padding:2px 8px;border-radius:3px}
+
+.ep-meta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.meta-item{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)}
+.meta-item span{color:var(--text)}
+
+.ep-notes{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:10px;padding:6px 8px;background:var(--surface);border-radius:4px;min-height:28px;cursor:text;border:1px solid transparent;transition:border-color .15s}
+.ep-notes:hover{border-color:var(--border2)}
+.ep-notes[contenteditable=true]:focus{outline:none;border-color:var(--accent);color:var(--text)}
+
+.ep-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-del{padding:5px 14px;background:transparent;border:1px solid #3d1a1a;border-radius:4px;color:#ff4f7b;font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;cursor:pointer;text-transform:uppercase;transition:all .15s}
+.btn-del:hover{background:#2a0d14;border-color:var(--red)}
+.btn-refresh{padding:5px 14px;background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;cursor:pointer;text-transform:uppercase;transition:all .15s}
+.btn-refresh:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ADD FORM */
+.add-panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:22px 24px;max-width:640px}
+.panel-title{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-group label{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em;margin-bottom:5px}
+input[type=date],input[type=text],input[type=number],input[type=password],select,textarea{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:9px 12px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:70px;line-height:1.5}
+.btn-primary{padding:11px 28px;background:#0e3a5c;border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:.1em;cursor:pointer;text-transform:uppercase;transition:background .15s}
+.btn-primary:hover{background:#1a4f7a}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em}
+.pill-btn{padding:4px 12px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;transition:all .12s}
+.pill-btn:hover{border-color:#526070;color:var(--text)}
+.pill-btn.active{border-color:var(--accent);background:#0d2535;color:var(--accent)}
+
+/* STATUS BAR */
+.status-bar{font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 28px;display:flex;align-items:center;gap:8px}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.status-dot.ok{background:var(--green)}
+.status-dot.err{background:var(--red)}
+.status-dot.loading{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(8,12,16,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:.1em}
+
+/* PIN */
+.pin-overlay{position:fixed;inset:0;background:rgba(8,12,16,.92);display:flex;align-items:center;justify-content:center;z-index:500}
+.pin-box{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:28px 32px;width:300px;text-align:center}
+.pin-title{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.15em;margin-bottom:18px}
+.pin-input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:12px;font-family:'Share Tech Mono',monospace;font-size:22px;letter-spacing:.3em;text-align:center;outline:none;margin-bottom:12px}
+.pin-input:focus{border-color:var(--accent)}
+.pin-input.shake{animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pin-error{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--red);margin-bottom:10px;min-height:14px}
+.pin-btns{display:flex;gap:8px;justify-content:center}
+.btn-secondary{padding:8px 18px;background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase;transition:all .15s}
+.btn-secondary:hover{border-color:var(--text);color:var(--text)}
+
+.save-indicator{position:fixed;bottom:70px;right:16px;background:#0d2535;border:1px solid var(--accent);border-radius:6px;padding:8px 14px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);display:none;z-index:200}
+.empty{text-align:center;padding:48px 24px;color:var(--muted);font-size:14px;border:1px dashed var(--border2);border-radius:10px}
+
+/* BOTTOM NAV */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#0d1219;border-top:1px solid var(--border2);z-index:300;height:62px}
+.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.06em;cursor:pointer;transition:color .15s;border:none;background:none;padding:0}
+.bottom-nav a.active{color:var(--accent)}
+.bn-icon{font-size:22px;line-height:1}
+.bn-lock.unlocked{color:var(--green)}
+
+@media(max-width:640px){
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+  header,.view,.stats-bar,.status-bar{padding-left:14px;padding-right:14px}
+  .nav{display:none}
+  .bottom-nav{display:flex}
+  .ep-prices{gap:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">LOADING EP DATA...</div>
+</div>
+
+<div class="pin-overlay" id="pinOverlay" style="display:none">
+  <div class="pin-box">
+    <div class="pin-title">🔒 ENTER PIN TO CONTINUE</div>
+    <input class="pin-input" type="password" id="pinInput" maxlength="6" placeholder="••••"/>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-btns">
+      <button class="btn-primary" id="pinBtn" style="padding:8px 24px;font-size:13px">UNLOCK</button>
+      <button class="btn-secondary" id="pinCancel">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<div class="save-indicator" id="saveIndicator">✓ SAVED</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-title">⚡ EP Tracker</div>
+    <div class="logo-sub">EPISODIC PIVOT · CATALYST DRIVEN · NSE/BSE</div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" id="navWatch">📡 Watchlist</button>
+    <button class="nav-btn" id="navAdd">➕ Add EP</button>
+    <button class="lock-badge" id="lockBadge">🔒 LOCKED</button>
+  </nav>
+</header>
+
+<div class="status-bar">
+  <div class="status-dot loading" id="statusDot"></div>
+  <span id="statusText" style="color:var(--muted)">Connecting...</span>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-card"><div class="stat-label">TOTAL EPs</div><div class="stat-value" id="s-total" style="color:var(--accent)">—</div><div class="stat-sub">tracked</div></div>
+  <div class="stat-card"><div class="stat-label">WATCHING</div><div class="stat-value" id="s-watch" style="color:var(--orange)">—</div><div class="stat-sub">on radar</div></div>
+  <div class="stat-card"><div class="stat-label">ENTERED</div><div class="stat-value" id="s-enter" style="color:var(--green)">—</div><div class="stat-sub">in trade</div></div>
+  <div class="stat-card"><div class="stat-label">AVG MOVE</div><div class="stat-value" id="s-avg" style="color:var(--purple)">—</div><div class="stat-sub">from entry</div></div>
+</div>
+
+<!-- WATCHLIST -->
+<div class="view active" id="view-watch">
+  <div class="filter-bar">
+    <span class="filter-label">SHOW</span>
+    <button class="pill-btn active" id="fAll">All</button>
+    <button class="pill-btn" id="fWatch">Watching</button>
+    <button class="pill-btn" id="fEnter">Entered</button>
+    <button class="pill-btn" id="fExit">Exited</button>
+    <button class="btn-secondary" id="refreshBtn" style="margin-left:auto">🔄 Refresh Prices</button>
+  </div>
+  <div class="ep-grid" id="ep-grid"></div>
+</div>
+
+<!-- ADD EP -->
+<div class="view" id="view-add">
+  <div class="add-panel">
+    <div class="panel-title">Add Episodic Pivot</div>
+    <div class="form-row">
+      <div class="form-group"><label>NSE SYMBOL</label><input type="text" id="addSym" placeholder="e.g. RELIANCE"/></div>
+      <div class="form-group"><label>CATALYST</label>
+        <select id="addCatalyst">
+          <option value="Earnings">Earnings</option>
+          <option value="Capex">Capex</option>
+          <option value="Order Win">Order Win</option>
+          <option value="Buyback">Buyback</option>
+          <option value="Merger/Acq">Merger/Acq</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>CATALYST DATE</label><input type="date" id="addDate"/></div>
+      <div class="form-group"><label>ENTRY PRICE (₹) — 0 if not entered yet</label><input type="number" id="addPrice" placeholder="0.00" step="0.05"/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>NOTES — earnings summary, order size, key detail</label>
+      <textarea id="addNotes" placeholder="e.g. Q3 PAT +45% YoY, revenue beat, guidance raised..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="btn-primary" id="addBtn">ADD EP →</button>
+      <span id="addMsg" style="font-size:12px;color:var(--green);display:none">✓ Added!</span>
+      <span id="addErr" style="font-size:12px;color:var(--red);display:none">✗ Failed</span>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a id="bnWatch" class="active"><span class="bn-icon">📡</span>WATCHLIST</a>
+  <a id="bnAdd"><span class="bn-icon">➕</span>ADD EP</a>
+  <a id="bnLock" class="bn-lock"><span class="bn-icon" id="bnLockIcon">🔒</span><span id="bnLockTxt">LOCKED</span></a>
+</nav>
+
+<script>
+var GAS_URL = "PASTE_YOUR_EP_GAS_URL_HERE";
+
+var CATALYSTS = {
+  "Earnings":   {color:"#39d0ff", bg:"#39d0ff18"},
+  "Capex":      {color:"#00e5a0", bg:"#00e5a018"},
+  "Order Win":  {color:"#ffa630", bg:"#ffa63018"},
+  "Buyback":    {color:"#d2a8ff", bg:"#d2a8ff18"},
+  "Merger/Acq": {color:"#ff4f7b", bg:"#ff4f7b18"},
+  "Other":      {color:"#526070", bg:"#52607018"}
+};
+
+var stocks=[], prices={};
+var isUnlocked=false, userPin="", pinCB=null;
+var filterStatus="all";
+var saveTimer=null;
+
+// ── EVENTS ───────────────────────────────────────────────
+document.getElementById("navWatch").onclick  = function(){ showView("watch"); };
+document.getElementById("navAdd").onclick    = function(){ requirePin(function(){ showView("add"); }); };
+document.getElementById("lockBadge").onclick = toggleLock;
+document.getElementById("addBtn").onclick    = addEP;
+document.getElementById("refreshBtn").onclick= function(){ loadData(true); };
+document.getElementById("pinBtn").onclick    = submitPin;
+document.getElementById("pinCancel").onclick = closePin;
+document.getElementById("pinInput").onkeydown= function(e){ if(e.key==="Enter") submitPin(); };
+document.addEventListener("keydown", function(e){ if(e.key==="Escape") closePin(); });
+document.getElementById("fAll").onclick   = function(){ setFilter("all",this); };
+document.getElementById("fWatch").onclick = function(){ setFilter("watching",this); };
+document.getElementById("fEnter").onclick = function(){ setFilter("entered",this); };
+document.getElementById("fExit").onclick  = function(){ setFilter("exited",this); };
+document.getElementById("bnWatch").onclick= function(){ showView("watch"); };
+document.getElementById("bnAdd").onclick  = function(){ requirePin(function(){ showView("add"); }); };
+document.getElementById("bnLock").onclick = toggleLock;
+
+// ── NAVIGATION ───────────────────────────────────────────
+function showView(id){
+  document.querySelectorAll(".view").forEach(function(v){ v.classList.remove("active"); });
+  document.getElementById("view-"+id).classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(function(b){ b.classList.remove("active"); });
+  document.querySelectorAll(".bottom-nav a:not(.bn-lock)").forEach(function(b){ b.classList.remove("active"); });
+  var nm={watch:"navWatch",add:"navAdd"};
+  var bm={watch:"bnWatch",add:"bnAdd"};
+  if(nm[id]) document.getElementById(nm[id]).classList.add("active");
+  if(bm[id]) document.getElementById(bm[id]).classList.add("active");
+}
+
+// ── PIN ──────────────────────────────────────────────────
+function requirePin(cb){ if(isUnlocked){ cb(); return; } requestPin(cb); }
+
+function requestPin(cb){
+  pinCB=cb;
+  document.getElementById("pinInput").value="";
+  document.getElementById("pinError").textContent="";
+  document.getElementById("pinOverlay").style.display="flex";
+  setTimeout(function(){ document.getElementById("pinInput").focus(); },100);
+}
+
+function closePin(){ document.getElementById("pinOverlay").style.display="none"; pinCB=null; }
+
+function submitPin(){
+  var val=document.getElementById("pinInput").value;
+  if(!val) return;
+  var btn=document.getElementById("pinBtn");
+  btn.disabled=true; btn.textContent="CHECKING...";
+  fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"verifyPin",pin:val})})
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    if(j.ok){
+      isUnlocked=true; userPin=val;
+      closePin();
+      document.getElementById("lockBadge").textContent="🔓 UNLOCKED";
+      document.getElementById("lockBadge").classList.add("unlocked");
+      document.getElementById("bnLockIcon").textContent="🔓";
+      document.getElementById("bnLockTxt").textContent="UNLOCKED";
+      document.getElementById("bnLock").classList.add("unlocked");
+      render();
+      if(pinCB){ pinCB(); pinCB=null; }
+    } else { pinFail(); }
+  })
+  .catch(pinFail)
+  .finally(function(){ btn.disabled=false; btn.textContent="UNLOCK"; });
+}
+
+function pinFail(){
+  var inp=document.getElementById("pinInput");
+  document.getElementById("pinError").textContent="Wrong PIN — try again";
+  inp.classList.add("shake"); inp.value="";
+  setTimeout(function(){ inp.classList.remove("shake"); },400);
+}
+
+function toggleLock(){
+  if(isUnlocked){
+    isUnlocked=false; userPin="";
+    document.getElementById("lockBadge").textContent="🔒 LOCKED";
+    document.getElementById("lockBadge").classList.remove("unlocked");
+    document.getElementById("bnLockIcon").textContent="🔒";
+    document.getElementById("bnLockTxt").textContent="LOCKED";
+    document.getElementById("bnLock").classList.remove("unlocked");
+    if(document.getElementById("view-add").classList.contains("active")) showView("watch");
+    render();
+  } else { requestPin(function(){}); }
+}
+
+// ── STATUS ───────────────────────────────────────────────
+function setStatus(state,msg){
+  var dot=document.getElementById("statusDot"),txt=document.getElementById("statusText");
+  dot.className="status-dot "+state;
+  txt.textContent=msg;
+  txt.style.color=state==="err"?"var(--red)":state==="ok"?"var(--green)":"var(--muted)";
+}
+
+// ── LOAD DATA ────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", function(){
+  document.getElementById("addDate").value=todayStr();
+  loadData(false);
+});
+
+function loadData(forceRefresh){
+  var cached=sessionStorage.getItem("epCache");
+  if(cached && !forceRefresh){
+    try{
+      var c=JSON.parse(cached);
+      stocks=c.stocks||[]; prices=c.prices||{};
+      document.getElementById("loadingOverlay").style.display="none";
+      render();
+    } catch(e){ cached=null; }
+  }
+  setStatus("loading", cached&&!forceRefresh ? "Refreshing prices..." : "Loading EP data...");
+  fetch(GAS_URL+"?t="+Date.now())
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    if(!j.ok) throw new Error("GAS error");
+    stocks=j.stocks||[]; prices=j.prices||{};
+    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+    setStatus("ok","Live prices loaded");
+    document.getElementById("loadingOverlay").style.display="none";
+    render();
+  })
+  .catch(function(e){
+    setStatus("err","Could not load data");
+    document.getElementById("loadingOverlay").style.display="none";
+    console.error(e);
+  });
+}
+
+// ── RENDER ───────────────────────────────────────────────
+function render(){
+  var watching=stocks.filter(function(s){ return s.status==="Watching"; }).length;
+  var entered =stocks.filter(function(s){ return s.status==="Entered"; }).length;
+
+  // avg move for entered stocks with price
+  var moves=[], entered_stocks=stocks.filter(function(s){ return s.status==="Entered" && s.entryPrice>0; });
+  entered_stocks.forEach(function(s){
+    var ltp=prices[s.symbol]?prices[s.symbol].ltp:0;
+    if(ltp>0) moves.push(((ltp-s.entryPrice)/s.entryPrice)*100);
+  });
+  var avg=moves.length?moves.reduce(function(a,b){ return a+b; },0)/moves.length:null;
+
+  document.getElementById("s-total").textContent=stocks.length;
+  document.getElementById("s-watch").textContent=watching;
+  document.getElementById("s-enter").textContent=entered;
+  document.getElementById("s-avg").textContent=avg!==null?(avg>=0?"+":"")+avg.toFixed(1)+"%":"—";
+  document.getElementById("s-avg").style.color=avg===null?"var(--purple)":avg>=0?"var(--green)":"var(--red)";
+
+  renderGrid();
+}
+
+function renderGrid(){
+  var grid=document.getElementById("ep-grid");
+  var filtered=stocks.filter(function(s){
+    if(filterStatus==="all") return true;
+    return s.status.toLowerCase()===filterStatus;
+  });
+
+  if(!filtered.length){
+    grid.innerHTML="<div class='empty'>No EP stocks here yet.<br>Add one using the ➕ Add EP tab.</div>";
+    return;
+  }
+
+  var html="";
+  filtered.forEach(function(s){
+    var p=prices[s.symbol]||{ltp:0,prev:0};
+    var ltp=p.ltp||0;
+    var prev=p.prev||0;
+    var entryPct = s.entryPrice>0&&ltp>0 ? ((ltp-s.entryPrice)/s.entryPrice*100) : null;
+    var dayPct   = prev>0&&ltp>0 ? ((ltp-prev)/prev*100) : null;
+    var cat=CATALYSTS[s.catalyst]||CATALYSTS["Other"];
+    var statusClass=s.status.toLowerCase();
+
+    var tv  = "https://www.tradingview.com/chart/?symbol=NSE%3A"+s.symbol;
+    var sc  = "https://www.screener.in/company/"+s.symbol+"/";
+    var nse = "https://www.nseindia.com/get-quotes/equity?symbol="+s.symbol;
+
+    html+="<div class='ep-card "+statusClass+"'>";
+
+    // TOP ROW
+    html+="<div class='ep-top'>";
+    html+="<div class='ep-sym'>"+s.symbol+"</div>";
+    html+="<div class='ep-links'>";
+    html+="<a class='ep-link' href='"+tv+"' target='_blank' title='TradingView'>📈</a>";
+    html+="<a class='ep-link sc' href='"+sc+"' target='_blank' title='Screener.in'>🔍</a>";
+    html+="<a class='ep-link nse' href='"+nse+"' target='_blank' title='NSE'>🏛️</a>";
+    html+="</div>";
+    html+="<span class='catalyst-badge' style='color:"+cat.color+";background:"+cat.bg+";border:1px solid "+cat.color+"44'>"+s.catalyst+"</span>";
+    if(isUnlocked){
+      html+="<select class='status-sel' data-id='"+s.id+"' onchange='updateStatus(this)'>";
+      ["Watching","Entered","Exited"].forEach(function(st){
+        html+="<option"+(s.status===st?" selected":"")+">"+st+"</option>";
+      });
+      html+="</select>";
+    } else {
+      html+="<span style='font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)'>"+s.status.toUpperCase()+"</span>";
+    }
+    html+="</div>";
+
+    // PRICES
+    html+="<div class='ep-prices'>";
+    if(s.entryPrice>0){
+      html+="<div class='price-block'><div class='price-label'>ENTRY</div><div class='price-val' style='color:var(--orange)'>₹"+s.entryPrice.toLocaleString("en-IN")+"</div></div>";
+    }
+    if(ltp>0){
+      html+="<div class='price-block'><div class='price-label'>LTP</div><div class='price-val' style='color:var(--text)'>₹"+ltp.toLocaleString("en-IN")+"</div></div>";
+    } else {
+      html+="<div class='price-block'><div class='price-label'>LTP</div><div class='price-val' style='color:var(--muted)'>—</div></div>";
+    }
+    if(entryPct!==null){
+      var epColor=entryPct>=0?"var(--green)":"var(--red)";
+      html+="<div class='pct-block'>";
+      html+="<div class='price-label'>FROM ENTRY</div>";
+      html+="<div class='pct-val' style='color:"+epColor+"'>"+(entryPct>=0?"+":"")+entryPct.toFixed(2)+"%</div>";
+      html+="</div>";
+    }
+    if(dayPct!==null){
+      var dpColor=dayPct>=0?"var(--green)":"var(--red)";
+      html+="<div class='price-block'><div class='price-label'>TODAY</div><div class='day-pct' style='color:"+dpColor+";background:"+(dayPct>=0?"#00e5a015":"#ff4f7b15")+"'>"+(dayPct>=0?"+":"")+dayPct.toFixed(2)+"%</div></div>";
+    }
+    html+="</div>";
+
+    // META
+    html+="<div class='ep-meta'>";
+    html+="<div class='meta-item'>CATALYST DATE <span>"+s.date+"</span></div>";
+    html+="<div class='meta-item'>ADDED <span>"+s.addedOn+"</span></div>";
+    html+="</div>";
+
+    // NOTES
+    if(isUnlocked){
+      html+="<div class='ep-notes' contenteditable='true' data-id='"+s.id+"' onblur='saveNotes(this)'>"+escHtml(s.notes||"Click to add notes...")+"</div>";
+    } else if(s.notes){
+      html+="<div class='ep-notes'>"+escHtml(s.notes)+"</div>";
+    }
+
+    // ACTIONS
+    if(isUnlocked){
+      html+="<div class='ep-actions'>";
+      html+="<button class='btn-del' data-id='"+s.id+"' onclick='deleteEP(this)'>🗑 Remove</button>";
+      html+="</div>";
+    }
+
+    html+="</div>";
+  });
+
+  grid.innerHTML=html;
+}
+
+// ── ACTIONS ──────────────────────────────────────────────
+function addEP(){
+  if(!isUnlocked){ requirePin(addEP); return; }
+  var sym   = document.getElementById("addSym").value.trim().toUpperCase();
+  var cat   = document.getElementById("addCatalyst").value;
+  var date  = document.getElementById("addDate").value;
+  var price = parseFloat(document.getElementById("addPrice").value)||0;
+  var notes = document.getElementById("addNotes").value.trim();
+  if(!sym||!date){ alert("Symbol and date are required."); return; }
+
+  var stock={
+    id:       Date.now().toString(),
+    symbol:   sym,
+    catalyst: cat,
+    date:     date,
+    entryPrice:price,
+    notes:    notes,
+    status:   "Watching",
+    addedOn:  todayStr()
+  };
+
+  var btn=document.getElementById("addBtn");
+  btn.disabled=true; btn.textContent="SAVING...";
+  document.getElementById("addMsg").style.display="none";
+  document.getElementById("addErr").style.display="none";
+
+  gasAction({action:"add", stock:stock, pin:userPin})
+  .then(function(){
+    stocks.push(stock);
+    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+    document.getElementById("addSym").value="";
+    document.getElementById("addPrice").value="";
+    document.getElementById("addNotes").value="";
+    document.getElementById("addMsg").style.display="inline";
+    setTimeout(function(){ document.getElementById("addMsg").style.display="none"; },3000);
+    showSaved();
+    render();
+    // fetch fresh prices in background
+    loadData(true);
+  })
+  .catch(function(e){
+    document.getElementById("addErr").style.display="inline";
+    setTimeout(function(){ document.getElementById("addErr").style.display="none"; },4000);
+    console.error(e);
+  })
+  .finally(function(){ btn.disabled=false; btn.textContent="ADD EP →"; });
+}
+
+function updateStatus(sel){
+  var id=sel.dataset.id, val=sel.value;
+  var s=stocks.find(function(x){ return x.id===id; });
+  if(s) s.status=val;
+  sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+  render();
+  gasAction({action:"update",id:id,field:"status",value:val,pin:userPin})
+  .then(showSaved).catch(function(e){ console.error(e); });
+}
+
+function saveNotes(el){
+  var id=el.dataset.id, val=el.textContent.trim();
+  if(val==="Click to add notes...") val="";
+  var s=stocks.find(function(x){ return x.id===id; });
+  if(s) s.notes=val;
+  sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+  gasAction({action:"update",id:id,field:"notes",value:val,pin:userPin})
+  .then(showSaved).catch(function(e){ console.error(e); });
+}
+
+function deleteEP(btn){
+  if(!confirm("Remove this EP stock?")) return;
+  var id=btn.dataset.id;
+  stocks=stocks.filter(function(s){ return s.id!==id; });
+  sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+  render();
+  gasAction({action:"delete",id:id,pin:userPin})
+  .then(showSaved).catch(function(e){ console.error(e); });
+}
+
+function setFilter(f, btn){
+  filterStatus=f;
+  document.querySelectorAll(".filter-bar .pill-btn").forEach(function(b){ b.classList.remove("active"); });
+  btn.classList.add("active");
+  renderGrid();
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+function gasAction(payload){
+  return fetch(GAS_URL,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(payload)})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if(!j.ok) throw new Error(j.error||"GAS error"); });
+}
+
+function showSaved(){
+  var si=document.getElementById("saveIndicator");
+  si.style.display="block";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){ si.style.display="none"; },2000);
+}
+
+function todayStr(){ return new Date().toISOString().split("T")[0]; }
+
+function escHtml(str){
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
