@@ -54,7 +54,13 @@ header{background:linear-gradient(90deg,#080c10,#0d1a28 50%,#080c10);border-bott
 .day-block{display:flex;flex-direction:column;gap:3px;padding:8px 12px;border-radius:6px;border:1px solid}
 .day-val{font-family:'Share Tech Mono',monospace;font-size:16px;font-weight:700}
 
-.ep-meta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+/* DAILY BAR */
+.daily-bar{display:flex;gap:2px;flex-wrap:wrap;margin:10px 0 6px;align-items:center}
+.daily-bar-label{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:.08em;margin-right:4px;flex-shrink:0}
+.day-box{width:10px;height:18px;border-radius:2px;flex-shrink:0;cursor:default}
+.day-box.up{background:#00e5a0}
+.day-box.down{background:#ff4f7b}
+.day-box.flat{background:#526070}
 .meta-item{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted)}
 .meta-item span{color:var(--text)}
 .ep-notes{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:10px;padding:6px 8px;background:var(--surface);border-radius:4px;min-height:28px;border:1px solid transparent;transition:border-color .15s}
@@ -243,7 +249,7 @@ var CATALYSTS = {
   "Other":      {color:"#526070", bg:"#52607018"}
 };
 
-var stocks=[], prices={};
+var stocks=[], prices={}, history={};
 var isUnlocked=false, userPin="", pinCB=null;
 var filterStatus="all", sortMode="ep";
 var saveTimer=null;
@@ -358,15 +364,15 @@ window.addEventListener("DOMContentLoaded", function(){
 function loadData(force){
   var cached=sessionStorage.getItem("epCache");
   if(cached&&!force){
-    try{ var c=JSON.parse(cached); stocks=c.stocks||[]; prices=c.prices||{}; document.getElementById("loadingOverlay").style.display="none"; render(); } catch(e){ cached=null; }
+    try{       var c=JSON.parse(cached); stocks=c.stocks||[]; prices=c.prices||{}; history=c.history||{}; document.getElementById("loadingOverlay").style.display="none"; render(); } catch(e){ cached=null; }
   }
   setStatus("loading", cached&&!force?"Refreshing prices...":"Loading EP data...");
   fetch(GAS_URL+"?t="+Date.now())
   .then(function(r){ return r.json(); })
   .then(function(j){
     if(!j.ok) throw new Error("err");
-    stocks=j.stocks||[]; prices=j.prices||{};
-    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+    stocks=j.stocks||[]; prices=j.prices||{}; history=j.history||{};
+    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices,history:history}));
     setStatus("ok","Live prices loaded ✓");
     document.getElementById("loadingOverlay").style.display="none";
     render();
@@ -518,13 +524,28 @@ function renderGrid(){
 
     html+="</div>";
 
-    // META
+    // META — trimmed date, no GMT
+    var epDateTrim = s.date; // already YYYY-MM-DD, clean
     html+="<div class='ep-meta'>";
-    html+="<div class='meta-item'>EP DATE <span>"+s.date+"</span></div>";
+    html+="<div class='meta-item'>EP DATE <span>"+epDateTrim+"</span></div>";
     html+="<div class='meta-item'>ADDED <span>"+s.addedOn+"</span></div>";
     var daysSince=Math.floor((new Date()-new Date(s.date))/(1000*60*60*24));
-    if(daysSince>=0) html+="<div class='meta-item'>AGE <span>"+daysSince+" days</span></div>";
+    if(daysSince>=0) html+="<div class='meta-item'>AGE <span>"+daysSince+"d</span></div>";
     html+="</div>";
+
+    // DAILY BAR — green/red boxes since EP date
+    var bars = history[s.symbol] || [];
+    var epBars = bars.filter(function(b){ return b.date >= s.date; });
+    if(epBars.length){
+      html+="<div class='daily-bar'>";
+      html+="<span class='daily-bar-label'>EP DAY →</span>";
+      epBars.forEach(function(b){
+        var cls = b.up ? "up" : "down";
+        html+="<div class='day-box "+cls+"' title='"+b.date+"'></div>";
+      });
+      html+="<span class='daily-bar-label'>← TODAY</span>";
+      html+="</div>";
+    }
 
     // NOTES
     if(isUnlocked){
@@ -564,7 +585,7 @@ function addEP(){
   gasAction({action:"add",stock:stock,pin:userPin})
   .then(function(){
     stocks.push(stock);
-    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+    sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices,history:history}));
     document.getElementById("addSym").value="";
     document.getElementById("addEpClose").value="";
     document.getElementById("addEntryPrice").value="";
@@ -582,7 +603,7 @@ function updateStatus(sel){
   var id=sel.dataset.id,val=sel.value;
   var s=stocks.find(function(x){ return x.id===id; });
   if(s) s.status=val;
-  sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices}));
+  sessionStorage.setItem("epCache",JSON.stringify({stocks:stocks,prices:prices,history:history}));
   render();
   gasAction({action:"update",id:id,field:"status",value:val,pin:userPin}).then(showSaved).catch(function(e){ console.error(e); });
 }
